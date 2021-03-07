@@ -1,0 +1,546 @@
+/**
+ * Aim test. 
+ * 2020-12-30
+ * lifeiyang. 
+ */
+import controlP5.*                  ;
+import java.util.*                  ;
+ControlFrame cf                     ;
+ControlP5 cp5                       ;
+
+float bx, by                        ;
+float boxSize = 5                   ;
+float f = 0                         ;
+float m = 0                         ; 
+float lm = 0                        ;
+float frate = 0                     ;
+float middleW = 0                   ;
+float middleH = 0                   ;
+float VX = 20                       ;
+float VY = 1                        ;
+float VVX = 10, suduX = 10          ;      //每一帧在偏航方向需要走的角度
+float VVY = 10, suduY = 10          ;      //每一帧在俯仰方向需要走的角度
+float l = 5010                      ;      //投影画面的长度
+float d = 6000                      ;      //投影画面距离镜头的距离
+float h = 3170                      ;      //投影画面的高，单位mm
+float cw, ch                        ;      //每个像素的长和宽
+float fps = 120                     ;      //设置帧频
+String[] lines                      ;
+float groundColor                   ;
+float aimColor                      ;
+int aimType, sportType              ;
+float AX = 20, AY = 0, fX = 0.2, fY = 0, t, T;
+float centerX,centerY               ;
+float a = 0                         ;
+float b = 0                         ;
+float x = 0                         ;
+float y = 0                         ;
+float xm                            ;
+float ym                            ;
+float xOffset = 0.0                 ; 
+float yOffset = 0.0                 ; 
+float zhefandianX,zhefandianY;
+boolean help = true, overBox = false, locked = false;
+boolean auto;
+String h1 = "帮助文档：\n";
+String h2 = "1.“空格”键暂停。\n";
+String h3 = "2.“TAB”更换目标类型。\n";
+String h4 = "3.“=”键目标变大。\n";
+String h5 = "4.“-”键目标减小。\n";
+String h6 = "5.“h”显示或隐藏帮助文档。\n";
+String h7 = "6.“q”显示或隐藏目标。\n";
+String h8 = "注意：所有操作均在英文输入法下。\n";
+String h9 = "所有操作均需切换到本应用下操作。\n";
+String h10 = "在静止状态下，将鼠标放在目标上，鼠标光标隐藏时，按下鼠标左键可以对目标进行拖动。\n";
+String h11 = "在静止状态下，按键“W”、“S”、“A”、“D”可以对目标进行上下左右微调。\n";
+String h12 = "7.“t”切换运动状态。\n";
+String hstr = h1+h2+h3+h4+h5+h6+h7+h12+h8+h9+h10+h11;
+
+void settings() {
+  fullScreen(2);
+}
+
+void setup() {
+
+  cf = new ControlFrame(this, 700, 400, "Controls");
+  middleW = degrees(atan(l/2/d));                        //
+  middleH = degrees(atan(h/2/d));
+  cw = l/width;
+  ch = h/height;
+  VVX = VVX/fps;
+  VVY = VVY/fps;
+  PFont myfont = createFont("宋体", 30);
+  textFont(myfont);
+  rectMode(RADIUS); 
+  frameRate(fps);
+}
+
+void draw() { 
+  /*************************************统计帧频***********************************************/
+  f = f+1;
+  m = millis();
+  if (m-lm>1000) {
+    frate = f/1;
+    lm = m;
+    f = 0;
+  }
+  /***********************************显示帮助文档***********************************************/
+  background(groundColor);
+  if (help) {
+    fill(aimColor);
+    text(hstr, 200, 200);
+  }
+  /*************************************显示到控制面板*****************************************/
+   
+  /****************************如果到达边界则反方向运动*************************************/
+
+  if (VX>=2*middleW-zhefandianX)
+    VVX = -VVX;
+  if (VY>=2*middleH-zhefandianY)
+    VVY = -VVY;
+  if (VX<=zhefandianX)
+    VVX = -VVX;
+  if (VY<=zhefandianY)
+    VVY = -VVY;
+  if (abs(VVX) != abs(suduX)) {
+    VVX = VVX/fps;    
+    suduX = VVX;
+  }
+  if (abs(VVY) != abs(suduY)) {
+    VVY = VVY/fps;    
+    suduY = VVY;
+  }
+  /***************如果目标处于静止状态，则可以对目标进行手动移动***********************************/
+  if (auto) {
+    onAim();
+    if (overBox) 
+      noCursor();       
+    else
+      cursor(ARROW);
+  } 
+  if (sportType == 0) {
+    
+    if (auto);
+    else {    
+      /****************************刷新显示位置********************************************************/
+      updataxy();
+      VX = VX+VVX;
+      VY = VY+VVY;
+    }
+  } else {
+    if (auto)
+      T =millis()-t;
+    else {  
+      t =millis()-T;
+      sinxy();
+      updataxy();
+    }
+  }
+  fill(aimColor);
+  noStroke();
+  if (aimType == 0)
+    cycle();
+  if (aimType == 1)
+    cross();
+  if (aimType == 2) 
+    shiziba();
+}
+
+/**************************************************位置三角波运动***********************************************/
+void updataxy() {
+  if (VX<middleW) {
+    bx = (l/2-tan(radians(middleW-VX))*d)/cw;
+  }
+  if (VX>=middleW) {
+    bx = (l/2+tan(radians(VX-middleW))*d)/cw;
+  }
+  if (VY<middleH) {
+    by = (h/2-tan(radians(middleH-VY))*d)/ch;
+  }
+  if (VY>=middleH) {
+    by = (h/2+tan(radians(VY-middleH))*d)/ch;
+  }
+}
+/*************************************************位置正弦波运动*********************************************/
+void sinxy() {
+  VX = AX*sin(fX*TWO_PI*t/1000)+centerX;
+  VY = AY*sin(fY*TWO_PI*t/1000)+centerY;
+}
+/******************************按键功能定义****************************************************************/
+void keyPressed() {
+  if (int(key) == 32) {    
+    auto = !auto;
+  }
+  if (key == TAB) {    
+    aimType++                       ;
+    if (aimType>2)
+      aimType =  0                  ;
+  }
+  if (key == '=') {
+    if (boxSize<=640)
+      boxSize++                       ;
+  }
+  if (key == '-') {
+    if (boxSize>=1)
+      boxSize--                       ;
+  }
+  if (key == 'q' || key == 'Q') {
+    b = boxSize                   ;
+    boxSize = a                   ;
+    a = b                         ;
+  }
+  if (key == 'h' || key == 'H') {
+    help = !help      ;
+  }
+  if (key == 'w' || key == 'W') {
+    if (by>=1)
+      by--                          ;
+  }
+
+  if (key == 's' || key == 'S') {
+    if (by<=height)
+      by++                          ;
+  }
+  if (key == 'a' || key == 'A') {
+    if (bx>=1)
+      bx--                          ;
+  }
+  if (key == 'd' || key == 'D') {
+    if (bx<=width)
+      bx++                          ;
+  }
+  if (key == 't' || key == 'T') {
+    if (sportType == 1)
+      sportType = 0;
+    else
+      sportType = 1;
+  }
+}
+/***************************************************画目标**********************************************************/
+void cross() {
+  rect(bx, by, 5*boxSize, boxSize);
+  rect(bx, by, boxSize, 5*boxSize);
+}
+
+void cycle() {
+  ellipse(bx, by, 5*boxSize, 5*boxSize);
+}
+
+void shiziba() {
+  rect(bx, by, 2*boxSize, boxSize);
+  fill(groundColor);
+  rect(bx, by, boxSize/4, boxSize/16);
+  rect(bx, by, boxSize/16, boxSize/4);
+}
+/*******************************************判断鼠标是否在目标上*****************************************************/
+void onAim() {
+  if (aimType == 0) {
+    float disX = bx - mouseX        ;
+    float disY = by - mouseY        ;
+    if (sqrt(sq(disX) + sq(disY)) < 5*boxSize/2 ) 
+      overBox = true;
+    else
+      overBox = false                 ;
+  }
+  if (aimType == 1) {
+    cross();
+    if (mouseX > bx-5*boxSize && mouseX < bx+5*boxSize && 
+      mouseY > by-boxSize   && mouseY < by+boxSize   ||
+      mouseX > bx-boxSize   && mouseX < bx+boxSize   && 
+      mouseY > by-5*boxSize && mouseY < by+5*boxSize) 
+      overBox = true;
+    else 
+    overBox = false;
+  }
+  if (aimType == 2) {
+    if (mouseX > bx-2*boxSize && mouseX < bx+2*boxSize && 
+      mouseY > by-boxSize   && mouseY < by+boxSize) 
+      overBox = true;
+    else
+      overBox = false;
+  }
+}
+/*******************************************定义鼠标按下功能*********************************************************/
+void mousePressed() {
+  if (overBox) { 
+    locked = true                     ;
+    xOffset = mouseX-bx               ; 
+    yOffset = mouseY-by               ;
+  } else {
+    locked = false                    ;
+    aimColor = 255.0/1920*mouseX ;
+    groundColor = 255.0/1080*mouseY    ;
+  }
+}
+/*********************************************定义鼠标拖动功能**************************************************/
+void mouseDragged() {
+  if (locked) {
+    bx = mouseX-int(xOffset)        ; 
+    by = mouseY-int(yOffset)        ;
+  }
+}
+/*********************************************定义鼠标释放功能**************************************************/
+void mouseReleased() {
+  locked = false                      ;
+}
+/*********************************************定义鼠标滚轮功能**************************************************/
+void mouseWheel(MouseEvent event) {
+  float e = event.getCount()          ;
+  if (boxSize>=0 && boxSize<=640)
+    boxSize = boxSize-e                 ;
+  if (boxSize>640)
+    boxSize = 640;
+  if (boxSize<0)
+    boxSize = 0;
+}
+/********************************************控制面板*********************************************************/
+class ControlFrame extends PApplet {
+
+  int w, h;
+  String name;
+  PApplet parent;
+  public ControlFrame(PApplet _parent, int _w, int _h, String _name) {
+    super();   
+    parent = _parent;
+    w=_w;
+    h=_h;
+    name = _name;
+    PApplet.runSketch(new String[]{this.getClass().getName()}, this);
+  }
+
+  public void settings() {
+    size(w, h);
+    
+  }
+
+  public void setup() {
+    PFont myfont = createFont("宋体", 20);
+    textFont(myfont);
+    surface.setLocation(width/2, height/2);
+    cp5 = new ControlP5(this);
+
+    cp5.addToggle("暂停")
+      .plugTo(parent, "auto")
+      .setPosition(300, 250)
+      .setSize(50, 50)
+      .setValue(true)
+      .setFont(myfont);
+
+    cp5.addSlider("偏航位置")
+      .plugTo(parent, "bx")
+      .setRange(0, 1920)
+      .setValue(960)
+      .setPosition(20, 10)
+      .setSize(100, 20)
+      .setFont(myfont);
+
+    cp5.addSlider("俯仰位置")
+      .plugTo(parent, "by")
+      .setRange(0, 1080)
+      .setValue(540)
+      .setPosition(20, 50)
+      .setSize(100, 20)
+      .setFont(myfont);
+
+    cp5.addSlider("目标大小")
+      .plugTo(parent, "boxSize")
+      .setRange(0, 255)
+      .setValue(10)
+      .setPosition(20, 90)
+      .setSize(100, 20)
+      .setFont(myfont);    
+
+    cp5.addSlider("目标灰度")
+      .plugTo(parent, "aimColor")
+      .setRange(0, 255)
+      .setValue(0)
+      .setPosition(20, 130)
+      .setSize(100, 20)
+      .setFont(myfont);
+
+    cp5.addSlider("背景灰度")
+      .plugTo(parent, "groundColor")
+      .setRange(0, 255)
+      .setValue(255)
+      .setPosition(20, 170)
+      .setSize(100, 20)
+      .setFont(myfont);
+
+    cp5.addSlider("偏航速度")
+      .plugTo(parent, "VVX")
+      .setRange(0, 100)
+      .setValue(10)
+      .setPosition(20, 210)
+      .setSize(100, 20)
+      .setFont(myfont);
+
+    cp5.addSlider("俯仰速度")
+      .plugTo(parent, "VVY")
+      .setRange(0, 100)
+      .setValue(10)
+      .setPosition(20, 250)
+      .setSize(100, 20)
+      .setFont(myfont);
+      
+      cp5.addSlider("三角波偏航振幅")
+      .plugTo(parent, "zhefandianX")
+      .setRange(0, 20)
+      .setValue(1)
+      .setPosition(20, 290)
+      .setSize(100, 20)
+      .setFont(myfont);
+      
+      cp5.addSlider("三角波俯仰振幅")
+      .plugTo(parent, "zhefandianY")
+      .setRange(0, 15)
+      .setValue(1)
+      .setPosition(20, 330)
+      .setSize(100, 20)
+      .setFont(myfont);
+
+    cp5.addSlider("偏航振幅")
+      .plugTo(parent, "AX")
+      .setRange(0, 25)
+      .setValue(20)
+      .setPosition(450,160)
+      .setSize(100, 20)
+      .setFont(myfont);
+
+    cp5.addSlider("偏航频率")
+      .plugTo(parent, "fX")
+      .setRange(0, 3)
+      .setValue(0.3)
+      .setPosition(450,200)
+      .setSize(100, 20)
+      .setFont(myfont);
+
+    cp5.addSlider("俯仰振幅")
+      .plugTo(parent, "AY")
+      .setRange(0, 15)
+      .setValue(10)
+      .setPosition(450,240)
+      .setSize(100, 20)
+      .setFont(myfont);
+
+    cp5.addSlider("俯仰频率")
+      .plugTo(parent, "fY")
+      .setRange(0, 3)
+      .setValue(0.3)
+      .setPosition(450,280)
+      .setSize(100, 20)
+      .setFont(myfont);
+      
+    cp5.addSlider("俯仰中心")
+      .plugTo(parent, "centerY")
+      .setRange(0, 30)
+      .setValue(15)
+      .setPosition(450,360)
+      .setSize(100, 20)
+      .setFont(myfont);
+      
+    cp5.addSlider("偏航中心")
+      .plugTo(parent, "centerX")
+      .setRange(0, 44)
+      .setValue(22)
+      .setPosition(450,320)
+      .setSize(100, 20)
+      .setFont(myfont);
+
+    List<String> drops = new ArrayList<String>();
+    drops.add("圆形靶");
+    drops.add("十字靶");
+    drops.add("黑底白十字");
+
+
+    cp5.addDropdownList("目标类型")
+      .plugTo(parent, "aimType")
+      .setPosition(250, 10)
+      .setValue(0)
+      .setWidth(150)
+      .setHeight(160)
+      .setBarHeight(40)
+      .setItemHeight(40)
+      .addItems(drops)
+      .setFont(myfont);
+
+    List<String> drops1= new ArrayList<String>();
+    drops1.add("位置三角波");
+    drops1.add("位置正弦波");
+
+    cp5.addDropdownList("运动类型")
+      .plugTo(parent, "sportType")
+      .setPosition(450, 10)
+      .setValue(0)
+      .setWidth(150)
+      .setHeight(120)
+      .setBarHeight(40)
+      .setItemHeight(40)
+      .addItems(drops1)
+      .setFont(myfont);
+  }
+
+  void draw() {
+    background(0);
+    if(sportType == 0){
+    fill(groundColor);
+    textSize(30);
+    text(nfc(frate, 2)+"_"+nfc(VVX*frate, 2)+"_"+nfc(VVY*frate, 2)+"_"+nfc(VX, 2)+"_"+nfc(VY, 2), width/2-200, 400);
+    }
+    else{
+      fill(groundColor);
+      textSize(30);
+      text(nfc(frate, 2)+"_"+nfc(2*PI*AX*fX*cos(TWO_PI*fX*t/1000), 2)+"_"+nfc(2*PI*AY*fY*cos(TWO_PI*fY*t/1000), 2)+"_"+nfc(VX, 2)+"_"+nfc(VY, 2), width/2-200, 400);
+    }
+  }
+
+  void keyPressed() {
+    if (int(key) == 32) {    
+      auto = !auto;
+    }
+    if (key == TAB) {    
+      aimType++;
+      if (aimType>2)
+        aimType =  0;
+    }
+    if (key == '=') {
+      if (boxSize<=640)
+        boxSize++;
+    }
+    if (key == '-') {
+      if (boxSize>=1)
+        boxSize--;
+    }
+    if (key == 'q' || key == 'Q') {
+      b = boxSize;
+      boxSize = a;
+      a = b;
+    }
+    if (key == 'h' || key == 'H') {
+      help = !help;
+    }
+    if (key == 'w' || key == 'W') {
+      if (by>=1)
+        by--;
+    }
+
+    if (key == 's' || key == 'S') {
+      if (by<=height)
+        by++;
+    }
+    if (key == 'a' || key == 'A') {
+      if (bx>=1)
+        bx--;
+    }
+    if (key == 'd' || key == 'D') {
+      if (bx<=width)
+        bx++;
+    }
+    if (key == 't' || key == 'T') {
+    if (sportType ==1)
+      sportType = 0;
+    else
+      sportType = 1;
+  }
+  }
+}
+
